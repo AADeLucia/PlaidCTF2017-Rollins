@@ -1,0 +1,80 @@
+First tried unzipping the file zip file with follwing terminal command:
+$ unzip zipper_50d3dc76dcdfa047178f5a1c19a52118.zip 
+
+but got the following error:
+
+Archive:  zipper_50d3dc76dcdfa047178f5a1c19a52118.zip
+warning:  filename too long--truncating.
+[  ]
+:  bad extra field length (central)
+
+after that I read up on the zip format from the following link:
+
+http://www.onicos.com/staff/iz/formats/zip.html
+
+and then did a hexdump to view the contents of the broken zip file and got 
+the following output:
+
+Johns-MacBook-Air:Downloads macbookair1$ hexdump zipper_50d3dc76dcdfa047178f5a1c19a52118.zip
+0000000 50 4b 03 04 14 00 02 00 08 00 fc 99 92 4a 3e a9
+0000010 2e 53 46 00 00 00 f6 00 00 00 29 23 1c 00 00 00
+0000020 00 00 00 00 00 00 55 54 09 00 03 5b c8 f6 58 5b
+0000030 c8 f6 58 75 78 0b 00 01 04 e8 03 00 00 04 e8 03
+0000040 00 00 53 50 20 04 b8 14 08 2b f1 28 ad aa 4a cc
+0000050 d0 51 a8 cc 2f 55 c8 48 2c 4b 55 48 4e 2c 28 29
+0000060 2d 4a 4d 51 28 c9 48 55 48 cb 49 4c b7 e2 0a 70
+0000070 0e 71 ab 4e 33 28 4a cd 2b 36 4c 2e 8e af 4c ac
+0000080 ac 25 c3 26 ea 28 01 00 50 4b 01 02 1e 03 14 00
+0000090 02 00 08 00 fc 99 92 4a 3e a9 2e 53 46 00 00 00
+00000a0 f6 00 00 00 29 23 18 00 00 00 00 00 01 00 00 00
+00000b0 b4 81 00 00 00 00 00 00 00 00 00 00 00 00 55 54
+00000c0 05 00 03 5b c8 f6 58 75 78 0b 00 01 04 e8 03 00
+00000d0 00 04 e8 03 00 00 50 4b 05 06 00 00 00 00 01 00
+00000e0 01 00 4e 00 00 00 88 00 00 00 00 00            
+00000ec
+
+after that I read up on the file format of a zip file online from
+this site: http://www.onicos.com/staff/iz/formats/zip.html
+
+from the error message the problem appeared to be related to the file name and the central directory,
+so i checked those out in the hex dump. the above site showed me that each directory started
+at a specific hex tag, 0x04034b50 for local header, w. central directory starting at the tag
+0x02014b50 and ending at the tag 0x06054b50. Note that the hex dump gave the values in lowbit/highbit,
+and the site in highbit/lowbit, so some of the hex values are reversed: 50 4b 01 02 for start of central
+directory from the hexdump in this case. I checked out the filename length by finding the 28 bit offset
+from the central directory tag, which you can see above is listed as being 29/23 in low high or 23/29
+in high low, which corresponds to some massive decimal value, which was probably throwing the filename
+too long error. Meanwhile the 46 byte offset for filename length was just empty, so while the zip
+clearly had some data (checked this by comparing with an empty zip) it was unnamed and thus uninflatable.
+On a hunch I created a new zip file, copied and pasted the hex dump from the old zip into it using bless
+hex editor,  and the filename field in both the central directory and local file header was changed from the 
+original hex vals  00 00 00 00 00 00 00 00 00 to the hex vals for the name "flag.txt", assuming this
+was the name of the relevant file in the broken zip archive. This hex value was 66 6c 61 67 2e 74 78 74 0d .
+Next step was to change the file size from the listed 23 29 characters to 08 in both the local and central
+filename length fields. This gave a zip file with contents looking something like this:  
+
+0000000 50 4b 03 04 14 00 02 00 08 00 fc 99 92 4a 3e a9
+0000010 2e 53 46 00 00 00 f6 00 00 00 08 1c 66 6c 67 2e
+0000020 74 78 74 0d -- -- 55 54 09 00 03 5b c8 f6 58 5b
+0000030 c8 f6 58 75 78 0b 00 01 04 e8 03 00 00 04 e8 03
+0000040 00 00 53 50 20 04 b8 14 08 2b f1 28 ad aa 4a cc
+0000050 d0 51 a8 cc 2f 55 c8 48 2c 4b 55 48 4e 2c 28 29
+0000060 2d 4a 4d 51 28 c9 48 55 48 cb 49 4c b7 e2 0a 70
+0000070 0e 71 ab 4e 33 28 4a cd 2b 36 4c 2e 8e af 4c ac
+0000080 ac 25 c3 26 ea 28 01 00 50 4b 01 02 1e 03 14 00
+0000090 02 00 08 00 fc 99 92 4a 3e a9 2e 53 46 00 00 00
+00000a0 f6 00 00 00 08 -- 18 00 00 00 00 00 01 00 00 00
+00000b0 b4 81 00 00 00 66 6c 61 67 2e 74 78 74 0d 55 54
+00000c0 05 00 03 5b c8 f6 58 75 78 0b 00 01 04 e8 03 00
+00000d0 00 04 e8 03 00 00 50 4b 05 06 00 00 00 00 01 00
+00000e0 01 00 4e 00 00 00 88 00 00 00 00 00
+00000ec
+
+
+After unzipping that new zip file containing the above hex values, the appropriate file "flag.txt"
+was inflated and added to my directory. used command "cat flag.txt" to open and following was displayed:
+
+Huzzah, you have captured the flag:
+PCTF{f0rensics_yay}
+
+
